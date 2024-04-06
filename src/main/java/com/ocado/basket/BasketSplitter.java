@@ -1,4 +1,4 @@
-package com.github.zdziszkee.basketsplitter;
+package com.ocado.basket;
 
 
 public class BasketSplitter {
