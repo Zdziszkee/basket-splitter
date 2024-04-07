@@ -1,5 +1,3 @@
-Poprawiony tekst:
-
 Głównym celem tego zadania jest podział przedmiotów znajdujących się w koszyku klienta na grupy dostaw.
 
 Danymi wejściowymi dla programu są:
