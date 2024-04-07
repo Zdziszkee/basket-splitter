@@ -1,82 +1,65 @@
 package com.ocado.basket;
 
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ocado.basket.deserializer.ConfigJsonDeserializer;
+import com.ocado.basket.deserializer.Deserializer;
+import com.ocado.basket.exception.DeserializerException;
+import com.ocado.basket.exception.LoaderException;
+import com.ocado.basket.loader.Loader;
+import com.ocado.basket.loader.PathLoader;
 
-import java.io.IOException;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
 public class BasketSplitter {
-    protected static final ObjectMapper mapper = new ObjectMapper();
-    protected final Map<String, Set<String>> productAvailableDeliveries = new HashMap<>();
+    private final static ObjectMapper mapper = new ObjectMapper();
+
+    private final static Loader<String, Path> loader = new PathLoader();
+    protected final Map<String, Set<String>> productAvailableDeliveries;
 
     public BasketSplitter(String absolutePathToConfigFile) {
         try {
-            productAvailableDeliveries.putAll(mapper.readValue(Files.readString(Paths.get(absolutePathToConfigFile)), new TypeReference<Map<String, Set<String>>>() {
-            }));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            final String json = loader.load(Paths.get(absolutePathToConfigFile));
+            final Deserializer<Map<String, Set<String>>> configDeserializer = new ConfigJsonDeserializer(mapper);
+            productAvailableDeliveries = configDeserializer.deserialize(json);
+        } catch (LoaderException | DeserializerException exception) {
+            //throwing RuntimeException to do not change constructor signature
+            throw new RuntimeException(exception);
         }
     }
 
     public Map<String, List<String>> split(List<String> items) {
-        Map<String,List<String>> result = new HashMap<>();
+        final List<String> basket = new ArrayList<>(items);
+        final Map<String, List<String>> deliveryGroups = new HashMap<>();
 
-        while(!items.isEmpty()){
-            //produkt -> liczba typow dostaw
-            //grupa  -> liczba produktow
-            Map<String,Integer> map = new TreeMap<>();
-            for (String item : items) {
-                Set<String> deliveries = productAvailableDeliveries.get(item);
-                for (String deliveryType : deliveries) {
-                    map.put(deliveryType,  map.getOrDefault(deliveryType,0)+1);
+        while (!basket.isEmpty()) {
+            final Map<String, Integer> deliveryFrequencies = new HashMap<>();
 
+            for (final String item : basket) {
+                final Set<String> deliveries = productAvailableDeliveries.get(item);
+                for (final String delivery : deliveries) {
+                    deliveryFrequencies.put(delivery, deliveryFrequencies.getOrDefault(delivery, 0) + 1);
                 }
             }
 
-            Map.Entry<String, Integer> max = map.entrySet().stream()
-                    .max(Comparator.comparingInt(Map.Entry::getValue))
-                    .get();
+            final Map.Entry<String, Integer> mostFrequentDeliveryEntry = deliveryFrequencies.entrySet().stream()
+                    .max(Comparator.comparingInt(Map.Entry::getValue)).orElseThrow(() -> new IllegalStateException("Delivery config is empty!"));
 
+            final List<String> deliveryGroup = new ArrayList<>();
+            final String mostFrequentDelivery = mostFrequentDeliveryEntry.getKey();
 
-            List<String> itemsFromGroup = new ArrayList<>();
-
-            String key = max.getKey();
-
-            for (String item : items) {
-                Set<String> deliveries = productAvailableDeliveries.get(item);
-                if(deliveries.contains(key))itemsFromGroup.add(item);
+            for (final String item : basket) {
+                final Set<String> deliveries = productAvailableDeliveries.get(item);
+                if (deliveries.contains(mostFrequentDelivery)) deliveryGroup.add(item);
             }
+            basket.removeAll(deliveryGroup);
 
-            items.removeAll(itemsFromGroup);
-
-            result.put(key,itemsFromGroup);
+            deliveryGroups.put(mostFrequentDelivery, deliveryGroup);
         }
-        return result;
+        return Collections.unmodifiableMap(deliveryGroups);
     }
 
-    public static void main(String[] args) throws IOException {
-        BasketSplitter basketSplitter = new BasketSplitter("C:\\Users\\Zdziszkee\\IdeaProjects\\basket-splitter\\src\\main\\resources\\config.json");
-        List<String> strings = mapper.readValue(Files.readString(Paths.get("C:\\Users\\Zdziszkee\\IdeaProjects\\basket-splitter\\src\\main\\resources\\output.json")), new TypeReference<List<String>>() {
-        });
-        Map<String, List<String>> split = basketSplitter.split(strings);
 
-
-        System.out.println(split);
-//
-//        List<String> products = basketSplitter.productAvailableDeliveries.keySet().stream().toList();
-//
-//        Set<String> basket = new HashSet<>();
-//
-//        while(basket.size()!=100){
-//            basket.add(products.get( ThreadLocalRandom.current().nextInt(0,products.size())));
-//
-//        }
-//        System.out.println(basket.size());
-//        String json = mapper.writeValueAsString(basket);
-//        Files.write(Paths.get("C:\\Users\\Zdziszkee\\IdeaProjects\\basket-splitter\\src\\main\\resources\\output.json"), json.getBytes());
-    }
 }
