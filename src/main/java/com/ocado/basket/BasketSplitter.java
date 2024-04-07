@@ -24,6 +24,7 @@ public class BasketSplitter {
 
     /**
      * Exceptions here should be handled by caller.
+     * but changing constructor signature might break ocado testing tool..
      */
     public BasketSplitter(String absolutePathToConfigFile) {
         try {
