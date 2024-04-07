@@ -12,21 +12,28 @@ import com.ocado.basket.loader.PathLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class BasketSplitter {
+    private static final Logger logger = Logger.getLogger(BasketSplitter.class.getName());
     private final static ObjectMapper mapper = new ObjectMapper();
 
     private final static Loader<String, Path> loader = new PathLoader();
-    protected final Map<String, Set<String>> productAvailableDeliveries;
+    protected Map<String, Set<String>> productAvailableDeliveries;
 
+    /**
+     * Exceptions here should be handled by caller.
+     */
     public BasketSplitter(String absolutePathToConfigFile) {
         try {
             final String json = loader.load(Paths.get(absolutePathToConfigFile));
             final Deserializer<Map<String, Set<String>>> configDeserializer = new ConfigJsonDeserializer(mapper);
             productAvailableDeliveries = configDeserializer.deserialize(json);
-        } catch (LoaderException | DeserializerException exception) {
-            //throwing RuntimeException to do not change constructor signature
-            throw new RuntimeException(exception);
+        } catch (LoaderException exception) {
+            logger.log(Level.SEVERE, "Error loading config!", exception);
+        } catch (DeserializerException exception) {
+            logger.log(Level.SEVERE, "Error deserializing config!", exception);
         }
     }
 
@@ -39,6 +46,11 @@ public class BasketSplitter {
 
             for (final String item : basket) {
                 final Set<String> deliveries = productAvailableDeliveries.get(item);
+
+                if (deliveries == null) {
+                    throw new IllegalStateException("Could not find available deliveries for product: " + item);
+                }
+
                 for (final String delivery : deliveries) {
                     deliveryFrequencies.put(delivery, deliveryFrequencies.getOrDefault(delivery, 0) + 1);
                 }

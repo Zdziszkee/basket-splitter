@@ -18,8 +18,9 @@ public class ConfigJsonDeserializer implements Deserializer<Map<String, Set<Stri
     @Override
     public Map<String, Set<String>> deserialize(final String json) throws DeserializerException {
         try {
-            return mapper.readValue(json, new TypeReference<>() {
+            final Map<String, Set<String>> config = mapper.readValue(json, new TypeReference<>() {
             });
+            return config;
         } catch (JsonProcessingException exception) {
             throw new DeserializerException("Could not deserialize config from json!", exception);
         }
