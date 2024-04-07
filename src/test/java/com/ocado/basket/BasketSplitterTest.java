@@ -17,8 +17,6 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 class BasketSplitterTest {
     private final ObjectMapper mapper = new ObjectMapper();
@@ -45,6 +43,15 @@ class BasketSplitterTest {
         expected.put("Courier",List.of("Cocoa Butter","Tart - Raisin And Pecan","Table Cloth 54x72 White","Flower - Daisies","Cookies - Englishbay Wht"));
 
         Assertions.assertEquals(deliveryGroups,expected);
+
+    }
+
+    @Test
+    public void testEmptyBasket() throws URISyntaxException {
+        final BasketSplitter basketSplitter = new BasketSplitter(getResourcePathString("config.json"));
+        Map<String, List<String>> deliveryGroups = basketSplitter.split(List.of());
+
+        Assertions.assertEquals(deliveryGroups.size(), 0);
 
     }
 
